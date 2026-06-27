@@ -1,0 +1,477 @@
+import { password } from "lib/utils/password";
+import { midsuit } from "./sync-config";
+export const employee = async (token: string) => {
+  try {
+    const options = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json", // Tipe konten JSON
+      },
+      tls: { rejectUnauthorized: false },
+    };
+    const res = await load_employee(options);
+    return res;
+  } catch (error: any) {
+    return {
+      result: false,
+      error: error.message,
+    };
+  }
+};
+const load_employee = async (opt: any) => {
+  const organization = await db.m_organization.findMany({
+    where: {
+      ad_org_id: {
+        not: null,
+      },
+    },
+  });
+  if (organization.length) {
+    await bulk_query({
+      list: organization,
+      task: async (item) => {
+        const res = await fetch(
+          `${midsuit.url}/organizations/${item.ad_org_id}/employees`,
+          opt
+        );
+        const result = await res.json();
+        if (result) {
+          const data = Array.isArray(result.data) ? result.data : [];
+          //upsert_employee
+          if (data.length) {
+            const dept = await db.m_organization_structure.findMany({
+              where: {
+                id_org: item.id,
+              },
+            });
+            const position = await db.m_position.findMany({
+              where: {
+                id_org: item.id,
+              },
+            });
+            await upsert_employee(data, dept, position, item.id);
+          }
+        }
+      },
+    });
+  }
+  return organization;
+};
+
+const upsert_employee = async (
+  list: any[],
+  department: any[],
+  position: any[],
+  id_org: string
+) => {
+  const code_employee = list.map((e) => e.hc_employee_id);
+  const employee = await db.m_employee.findMany({
+    where: {
+      hc_employee_id: {
+        in: code_employee,
+      },
+    },
+  });
+  const upsert_data = list.map((emp) => {
+    let data: any = {
+      name: emp.name,
+      npwp: emp.npwp,
+      gender: emp.gender,
+      age: emp.age_year,
+      home_address: emp.address,
+      status: emp.status === "A" ? "active" : "inactive",
+      company_address: emp?.employee_job?.work_site?.address,
+      hc_employee_id: emp?.hc_employee_id,
+      id_org: id_org,
+      nik: emp.nik,
+    };
+    let ep = employee.find((ex) => ex.hc_employee_id === emp.hc_employee_id);
+    if (ep) {
+      data = {
+        id: ep.id,
+        ...data,
+      };
+    }
+
+    const structure = [
+      { data: department, keys: "hc_org_id", name: "id_department" },
+      { data: position, keys: "hc_job_id", name: "id_position" },
+    ];
+    bulk_task({
+      list: structure,
+      task: (item: any) => {
+        const f = item.data.find(
+          (e: any) => e?.[item.keys] === emp?.employee_job?.[item.keys]
+        );
+        data = {
+          ...data,
+          [item.name]: f ? f.id : null,
+        };
+      },
+    });
+    return data;
+  });
+  // upsert employee
+  const upsert = await db._batch.upsert({
+    table: "m_employee",
+    where: {
+      hc_employee_id: {
+        in: code_employee,
+      },
+    },
+    data: upsert_data,
+    mode: "raw",
+  } as any);
+  // upsert position_employee and user
+  const staff = await db.m_employee.findMany({
+    where: {
+      id: {
+        in: upsert.map((e: { id: any }) => e.id),
+      },
+    },
+    include: {
+      m_organization: true,
+      m_department: true,
+      m_employee_position: true,
+      m_position: {
+        include: {
+          other_m_position: {
+            include: {
+              m_employee: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  // variabel data untuk posisi employee dan user
+  const posisi_employee = [] as any[];
+  const users = [] as any[];
+
+  staff.map(
+    (e: {
+      id_position: any;
+      m_position: { other_m_position: never[] };
+      id_user: any;
+      nik: string;
+      name: any;
+      m_department: { name: string };
+      id: any;
+      is_pk: boolean;
+      m_employee_position: string | any[];
+      id_department: any;
+    }) => {
+      // user
+      if (e.id_position) {
+        let is_manager = false;
+        const other_position = e?.m_position?.other_m_position || [];
+        if (other_position.length) {
+          try {
+            const staff = other_position.find(
+              (e: { m_employee: string | any[] }) => {
+                try {
+                  return e?.m_employee?.length ? true : false;
+                } catch (ex) {
+                  return false;
+                }
+              }
+            );
+            if (staff) is_manager = true;
+          } catch (ex) {}
+        }
+        if (e.id_user) {
+          const user = {
+            id: e.id_user,
+            username: e.nik,
+            name: e.name,
+            email: e.nik,
+            m_role: {
+              connect: {
+                id:
+                  e?.m_department?.name === "Human Resource"
+                    ? "1e9547a4-7699-40b5-b85e-c830953c3dbe"
+                    : is_manager
+                    ? "7824aaec-f39d-4038-aadb-e55ad6a76f71"
+                    : "b6e2aa92-7074-42a4-82cb-28f72fb571b8",
+              },
+            },
+            _marker: {
+              id_employee: e.id,
+            },
+          };
+          users.push(user);
+        } else {
+          // create new user;
+          const user = {
+            username: e.nik,
+            name: e.name,
+            reset_password: true,
+            password: password.hash(e.nik),
+            email: e.nik,
+            m_role: {
+              connect: {
+                id:
+                  e?.m_department?.name === "Human Resource"
+                    ? "1e9547a4-7699-40b5-b85e-c830953c3dbe"
+                    : is_manager
+                    ? "7824aaec-f39d-4038-aadb-e55ad6a76f71"
+                    : "b6e2aa92-7074-42a4-82cb-28f72fb571b8",
+              },
+            },
+            _marker: {
+              id_employee: e.id,
+            },
+          };
+          users.push(user);
+        }
+
+        let is_pk = false;
+        // is pk
+        if (is_manager) {
+          let f = staff.find(
+            (ex: { id_position: any; is_pk: any }) =>
+              e.id_position === ex.id_position && ex?.is_pk
+          );
+          if (!f) is_pk = true;
+        }
+        e.is_pk = is_pk;
+        // role
+        let id = null;
+        if (e.m_employee_position.length) {
+          // existing
+          try {
+            id = e.m_employee_position[0]?.id;
+          } catch (ex) {}
+        }
+        // struktur umum
+        let m_employee_position: any = {
+          is_pk,
+          m_position: {
+            connect: {
+              id: e.id_position,
+            },
+          },
+          m_organization_structure: {
+            connect: {
+              id: e.id_department,
+            },
+          },
+          m_employee: {
+            connect: {
+              id: e.id,
+            },
+          },
+        };
+        if (id) {
+          // jika ada id, cantolin
+          m_employee_position = {
+            id,
+            ...m_employee_position,
+          };
+        }
+        posisi_employee.push(m_employee_position);
+      }
+    }
+  );
+
+  // upsert posisi employee
+  await db._batch.upsert({
+    table: "m_employee_position",
+    where: {
+      m_employee: {
+        hc_employee_id: {
+          in: code_employee,
+        },
+      },
+    },
+    data: posisi_employee,
+    mode: "raw",
+  } as any);
+
+  // upsert user
+  const user = await db._batch.upsert({
+    table: "m_user",
+    where: {
+      m_employee: {
+        hc_employee_id: {
+          in: code_employee,
+        },
+      },
+    },
+    data: users,
+    mode: "raw",
+  } as any);
+  if (user.length) {
+    const update_user_employee = user.map((e) => {
+      return {
+        id: e._marker.id_employee,
+        id_user: e.id,
+      };
+    });
+    const id_employee = update_user_employee.map((e) => e.id);
+    await db._batch.upsert({
+      table: "m_employee",
+      where: {
+        id: {
+          in: id_employee,
+        },
+      },
+      data: update_user_employee,
+      mode: "raw",
+    } as any);
+  }
+  await sinkron_role();
+  // Catatan Untuk Ilham
+  // btw, ada 2 catatan untuk ilham satu di file config dan file employee yg ini atau kamu search saja catatan ilham
+  // Baca ham, ojok lalu dibuka! buka komen dibawah jika mau deploy ke production
+  // await terminateEmployee();
+};
+
+const sinkron_role = async () => {
+  const employee = await db.m_user.findMany({
+    include: {
+      m_role: true,
+    },
+  });
+  const role = await db.m_role.findMany({});
+  const child_role = [
+    {
+      name: "super_admin",
+      child: ["hrd", "manager", "employee"],
+    },
+    {
+      name: "hrd",
+      child: ["manager", "employee"],
+    },
+    {
+      name: "manager",
+      child: ["employee"],
+    },
+    {
+      name: "employee",
+      child: [],
+    },
+  ];
+  const findRoleId = (name: string) => {
+    const result = role.find((e: { name: string }) => e.name === name);
+    return result.id;
+  };
+  const mapping_children_role = (id_user: string, user_role: string) => {
+    const your_role = child_role.find((e) => e.name === user_role);
+    const data = your_role?.child || [];
+    const result = [] as any[];
+    if (data.length) {
+      data.map((e) => {
+        result.push({
+          id_user,
+          id_role: findRoleId(e),
+        });
+      });
+    }
+    return result;
+  };
+  let data = [] as any[];
+  employee.map((e: { id: string; m_role: { name: string } }) => {
+    data.push({
+      id_user: e.id,
+      id_role: findRoleId(e.m_role.name),
+    });
+    let child = mapping_children_role(e.id, e.m_role.name);
+    if (child.length) {
+      data = data.concat(child);
+    }
+  });
+  await db._batch.upsert({
+    table: "m_user_role",
+    where: {
+      id_user: {
+        in: employee.map((e: { id: any }) => e.id),
+      },
+    },
+    data,
+    mode: "raw",
+  });
+};
+
+const terminateEmployee = async () => {
+  // delete role user
+  const result = await db.m_employee.count({
+    where: {
+      status: "inactive",
+      m_employee_position: {
+        some: {},
+      },
+    },
+  });
+  await db.m_employee.updateMany({
+    where: {
+      status: "inactive",
+    },
+    data: {
+      id_user: null,
+    },
+  });
+  if (result > 0) {
+    await db.m_user_role.deleteMany({
+      where: {
+        m_user: {
+          m_employee: {
+            status: "inactive",
+          },
+        },
+      },
+    });
+    await db.m_user.deleteMany({
+      where: {
+        m_employee: {
+          status: "inactive",
+        },
+      },
+    });
+
+    // await db.m_employee_position.deleteMany({
+    //   where: {
+    //     m_employee: {
+    //       status: "inactive",
+    //     },
+    //   },
+    // });
+  }
+};
+export const bulk_task = ({
+  list,
+  task,
+}: {
+  list: any[];
+  task: (e: any) => void;
+}) => {
+  const recursive = async (data: any, list: Array<any>, index: number) => {
+    if (list.length) {
+      task(data);
+      index++;
+      if (index <= list.length - 1) {
+        recursive(list[index], list, index);
+      }
+    }
+  };
+  recursive(list[0], list, 0);
+};
+
+export const bulk_query = async ({
+  list,
+  task,
+}: {
+  list: any[];
+  task: (e: any) => Promise<void>;
+}) => {
+  const recursive = async (data: any, list: Array<any>, index: number) => {
+    if (list.length) {
+      await task(data);
+      index++;
+      if (index <= list.length - 1) {
+        await recursive(list[index], list, index);
+      }
+    }
+  };
+  await recursive(list[0], list, 0);
+};

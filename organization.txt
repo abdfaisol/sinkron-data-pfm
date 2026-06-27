@@ -1,0 +1,64 @@
+import { midsuit } from "./sync-config";
+export const organization = async (token: string) => {
+  try {
+    const options = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json", // Tipe konten JSON
+      },
+      tls: { rejectUnauthorized: false },
+    };
+    const res = await fetch(`${midsuit.url}/api/organizations`, options);
+    const result = await res.json();
+    if (result) {
+      if (Array.isArray(result.data) && result.data.length) {
+        const org = await db.m_organization.findMany({});
+        const data: any[] = [];
+        const id: any[] = result.data.map(
+          (e: { ad_org_id: any }) => e.ad_org_id
+        );
+        result.data.map((e: any) => {
+          const f = org.find(
+            (ex: { ad_org_id: any }) => ex.ad_org_id === e.ad_org_id
+          );
+          let address =
+            Array.isArray(e.org_info.locations) && e.org_info.locations.length
+              ? e.org_info?.address
+              : null;
+          if (f) {
+            data.push({
+              id: f.id,
+              name: e.name,
+              address: address,
+              ad_org_id: e.ad_org_id,
+            });
+          } else {
+            data.push({
+              name: e.name,
+              address: address,
+              ad_org_id: e.ad_org_id,
+            });
+          }
+        });
+
+        const organization = await db._batch.upsert({
+          table: "m_organization",
+          where: {
+            ad_org_id: {
+              in: id,
+            },
+          },
+          data: data,
+          mode: "raw",
+        } as any);
+        return data;
+      }
+    }
+    return res.json();
+  } catch (error: any) {
+    return {
+      result: false,
+      error: error.message,
+    };
+  }
+};

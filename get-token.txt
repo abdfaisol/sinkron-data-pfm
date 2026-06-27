@@ -1,0 +1,30 @@
+import { midsuit } from "./sync-config";
+
+export const getToken = async () => {
+  let token = null;
+  try {
+    const options = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json", // Tipe konten JSON
+      },
+      method: "POST", // Metode POST
+      body: JSON.stringify({
+        username: "SuperUser",
+        password: "JgiMidsuit123!",
+      }),
+      tls: { rejectUnauthorized: false },
+    };
+    const res = await fetch(`${midsuit.url}/login`, options);
+    const result = await res.json();
+    if(result){
+      return result?.data?.token
+    }
+    return res.json();
+  } catch (error: any) {
+    return {
+      result: false,
+      error: error.message,
+    };
+  }
+};

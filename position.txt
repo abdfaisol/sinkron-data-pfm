@@ -1,0 +1,164 @@
+import { midsuit } from "./sync-config";
+export const position = async (token: string) => {
+  try {
+    const options = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json", // Tipe konten JSON
+      },
+      tls: { rejectUnauthorized: false },
+    };
+    const res = await load_position_org(options);
+    return res;
+  } catch (error: any) {
+    return {
+      result: false,
+      error: error.message,
+    };
+  }
+};
+const load_position_org = async (opt: any) => {
+  const organization = await db.m_organization.findMany({
+    where: {
+      ad_org_id: {
+        not: null,
+      },
+    },
+  });
+  if (organization.length) {
+    await bulk_query({
+      list: organization,
+      task: async (item) => {
+        try {
+          const res = await fetch(
+            `${midsuit.url}/organizations/${item.ad_org_id}/jobs`,
+            opt
+          );
+          const result = await res.json();
+          if (result) {
+            if (Array.isArray(result.data) && result.data.length) {
+              // tabel posisi
+              const org = await db.m_position.findMany({
+                where: {
+                  id_org: item.id,
+                },
+              });
+              // tabel departement
+              const data_structure = result.data.filter(
+                (e: { hc_org_id: any }) => e.hc_org_id
+              );
+              const id_structure = data_structure.map(
+                (e: { hc_org_id: any }) => e.hc_org_id
+              );
+              const depts = await db.m_organization_structure.findMany({
+                where: {
+                  hc_org_id: {
+                    in: id_structure,
+                  },
+                },
+              });
+              // Variabel
+              const data: any[] = [];
+              // looping data dari api dan konvert ke kolom db kita
+              result.data.map((e: any) => {
+                let res: any = {
+                  name: e.name,
+                  hc_job_id: e.hc_job_id,
+                  id_org: item.id,
+                  id_department: null,
+                  _marker: {
+                    id: e.hc_job_id,
+                    parent: e.parent_id,
+                  },
+                };
+                if (e.hc_org_id) {
+                  const dep = depts.find(
+                    (ex: { hc_org_id: any }) => ex.hc_org_id === e.hc_org_id
+                  );
+                  if (dep) {
+                    res.id_department = dep.id;
+                  }
+                }
+                if (org.length) {
+                  const f = org.find(
+                    (ex: { hc_job_id: any }) => ex.hc_job_id === e.hc_job_id
+                  );
+                  if (f) {
+                    res = {
+                      id: f.id,
+                      ...res,
+                    };
+                  }
+                }
+                data.push(res);
+              });
+              const structures: any = await db._batch.upsert({
+                table: "m_position",
+                where: {
+                  id_org: item.id,
+                },
+                data: data,
+                mode: "raw",
+              } as any);
+              if (Array.isArray(structures) && structures.length) {
+                let structures_parent = structures.map((e) => {
+                  if (e._marker.parent) {
+                    const f = structures.find(
+                      (ex) => ex._marker.id === e._marker.parent
+                    );
+                    return {
+                      ...e,
+                      id_parent: f ? f.id : null,
+                    };
+                  } else {
+                    return {
+                      ...e,
+                      id_parent: null,
+                    };
+                  }
+                });
+                const id_structures_parent =
+                  structures_parent.map((e) => e.id) || [];
+                if (id_structures_parent.length)
+                  await db._batch.upsert({
+                    table: "m_position",
+                    where: {
+                      id: {
+                        in: id_structures_parent,
+                      },
+                    },
+                    data: structures_parent,
+                    mode: "raw",
+                  } as any);
+              }
+            }
+          }
+        } catch (ex: any) {
+          console.log(ex.message);
+        }
+      },
+    });
+  }
+  return organization;
+};
+export const upsert = async (table: string, where: string, data: string) => {
+
+}
+export const bulk_query = async ({
+  list,
+  task,
+}: {
+  list: any[];
+  task: (e: any) => Promise<void>;
+}) => {
+  const recursive = async (data: any, list: Array<any>, index: number) => {
+    if (list.length) {
+      await task(data);
+      index++;
+      if (index <= list.length - 1) {
+        await recursive(list[index], list, index);
+      }
+    }
+  };
+  await recursive(list[0], list, 0);
+};

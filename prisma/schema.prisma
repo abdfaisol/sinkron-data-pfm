@@ -1,0 +1,708 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model action_detail {
+  id                       String                 @id(map: "action_detail_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action_name              String?                @db.VarChar
+  due_date                 DateTime?              @db.Timestamptz(6)
+  key_task                 Boolean?
+  id_goal_employee         String?                @db.Uuid
+  id_goal_setting_employee String?                @db.Uuid
+  id_goal_setting          String?                @db.Uuid
+  id_goal                  String?                @db.Uuid
+  status                   Boolean?               @default(false)
+  id_parent                String?                @db.Uuid
+  goal_employee            goal_employee?         @relation(fields: [id_goal_employee], references: [id], onDelete: Cascade)
+  goal                     goal?                  @relation(fields: [id_goal], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  goal_setting_employee    goal_setting_employee? @relation(fields: [id_goal_setting_employee], references: [id])
+  goal_setting             goal_setting?          @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  action_detail            action_detail?         @relation("action_detailToaction_detail", fields: [id_parent], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_action_detail      action_detail[]        @relation("action_detailToaction_detail")
+}
+
+model dimension {
+  id                        String                    @id(map: "dimension_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_employee          String?                   @db.Uuid
+  id_goal_setting_employee  String?                   @db.Uuid
+  name                      String?                   @db.VarChar
+  due_date                  DateTime?                 @db.Timestamptz(6)
+  key_task                  Boolean?
+  status                    Boolean?                  @default(false)
+  id_target_level_dimension String?                   @db.Uuid
+  id_goal                   String?                   @db.Uuid
+  id_goal_setting           String?                   @db.Uuid
+  id_parent                 String?                   @db.Uuid
+  goal_employee             goal_employee?            @relation(fields: [id_goal_employee], references: [id], onDelete: Cascade)
+  goal                      goal?                     @relation(fields: [id_goal], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  goal_setting_employee     goal_setting_employee?    @relation(fields: [id_goal_setting_employee], references: [id])
+  goal_setting              goal_setting?             @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  dimension                 dimension?                @relation("dimensionTodimension", fields: [id_parent], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_dimension           dimension[]               @relation("dimensionTodimension")
+  m_target_level_dimension  m_target_level_dimension? @relation(fields: [id_target_level_dimension], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model goal {
+  id                String              @id(map: "goal_goal_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_target_level   String?             @db.Uuid
+  id_target_type    String?             @db.Uuid
+  id_measure        String?             @db.Uuid
+  name_goal         String?             @db.VarChar
+  description       String?             @db.VarChar
+  definition        String?             @db.VarChar
+  threshold         Float?
+  start_date        DateTime?           @db.Timestamptz(6)
+  due_date          DateTime?           @db.Timestamptz(6)
+  status            String?             @db.VarChar
+  timebound         String?             @db.VarChar
+  id_uom            String?             @db.Uuid
+  cascade           Boolean?            @default(false)
+  target            Float?
+  status_approve    String?             @db.VarChar
+  message_approve   String?             @db.VarChar
+  id_verifier       String?             @db.Uuid
+  verified_at       DateTime?           @db.Timestamptz(6)
+  created_by        String?             @db.Uuid
+  created_at        DateTime?           @db.Timestamptz(6)
+  bobot             Float?
+  id_goal_type      String?             @db.Uuid
+  start_date_cutoff DateTime?           @db.Timestamptz(6)
+  end_date_cutoff   DateTime?           @db.Timestamptz(6)
+  tipe              String?             @db.VarChar
+  id_parent         String?             @db.Uuid
+  id_goal_setting   String?             @db.Uuid
+  is_numeric        Boolean?            @default(true)
+  month             Int?
+  year              Int?
+  phase             String?             @db.VarChar
+  action_detail     action_detail[]
+  dimension         dimension[]
+  goal_setting      goal_setting?       @relation(fields: [id_goal_setting], references: [id], onUpdate: NoAction)
+  goal_type         goal_type?          @relation(fields: [id_goal_type], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_measure         m_measure?          @relation(fields: [id_measure], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal              goal?               @relation("goalTogoal", fields: [id_parent], references: [id], onUpdate: NoAction)
+  other_goal        goal[]              @relation("goalTogoal")
+  m_target_level    m_target_level?     @relation(fields: [id_target_level], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_target_type     m_target_type?      @relation(fields: [id_target_type], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_uom             m_uom?              @relation(fields: [id_uom], references: [id], onUpdate: NoAction)
+  goal_approval     goal_approval[]
+  goal_company      goal_company[]
+  goal_department   goal_department[]
+  goal_employee     goal_employee[]
+  goal_organization goal_organization[]
+  goal_position     goal_position[]
+  goal_tags         goal_tags[]
+  goal_unit         goal_unit[]
+  milestone         milestone[]
+  resource          resource[]
+}
+
+model goal_approval {
+  id                                               String      @id(map: "goal_approval_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal                                          String?     @db.Uuid
+  status                                           String?     @default("NEED REVIEW") @db.VarChar
+  verified_id                                      String?     @db.Uuid
+  created_at                                       DateTime?   @db.Timestamptz(6)
+  verified_at                                      DateTime?   @db.Timestamptz(6)
+  created_by                                       String?     @db.Uuid
+  read_at                                          DateTime?   @db.Timestamptz(6)
+  notes                                            String?     @db.VarChar
+  show_at                                          DateTime?   @db.Timestamptz(6)
+  m_employee_goal_approval_created_byTom_employee  m_employee? @relation("goal_approval_created_byTom_employee", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal                                             goal?       @relation(fields: [id_goal], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  m_employee_goal_approval_verified_idTom_employee m_employee? @relation("goal_approval_verified_idTom_employee", fields: [verified_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_company {
+  id         String    @id(map: "goal_company_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal    String    @db.Uuid
+  id_company String    @db.Uuid
+  m_company  m_company @relation(fields: [id_company], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal       goal      @relation(fields: [id_goal], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_department {
+  id                       String                   @id(map: "goal_department_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal                  String                   @db.Uuid
+  id_department            String                   @db.Uuid
+  m_organization_structure m_organization_structure @relation(fields: [id_department], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal                     goal                     @relation(fields: [id_goal], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model goal_employee {
+  id                  String                @id(map: "goal_employee_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal             String                @db.Uuid
+  id_employee         String                @db.Uuid
+  value               String?               @db.VarChar
+  threshold           Float?
+  bobot               Float?
+  id_parent           String?               @db.Uuid
+  notes               String?               @db.VarChar
+  status              String?               @db.VarChar
+  id_verifier         String?               @db.Uuid
+  verified_at         DateTime?             @db.Timestamptz(6)
+  fase                String?               @db.VarChar
+  updated_at          DateTime?             @db.Timestamptz(6)
+  show_at             DateTime?             @db.Timestamptz(6)
+  action_detail       action_detail[]
+  dimension           dimension[]
+  m_employee          m_employee            @relation(fields: [id_employee], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal                goal                  @relation(fields: [id_goal], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  goal_employee       goal_employee?        @relation("goal_employeeTogoal_employee", fields: [id_parent], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_goal_employee goal_employee[]       @relation("goal_employeeTogoal_employee")
+  goal_feedback       goal_feedback[]
+  goal_recommendation goal_recommendation[]
+  goal_report         goal_report[]
+  goal_target         goal_target[]
+  milestone           milestone[]
+  milestone_employee  milestone_employee[]
+  resource            resource[]
+}
+
+model goal_feedback {
+  id               String        @id(map: "goal_feedback_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_employee String        @db.Uuid
+  feedback         String?       @db.VarChar
+  feedback_date    DateTime?     @db.Timestamptz(6)
+  created_by_id    String        @db.Uuid
+  created_at       DateTime?     @db.Timestamptz(6)
+  updated_at       DateTime?     @db.Timestamptz(6)
+  read_at          DateTime?     @db.Timestamptz(6)
+  show_at          DateTime?     @db.Timestamptz(6)
+  m_employee       m_employee    @relation(fields: [created_by_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal_employee    goal_employee @relation(fields: [id_goal_employee], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_organization {
+  id             String          @id(map: "goal_organization_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_org         String?         @db.Uuid
+  id_goal        String?         @db.Uuid
+  goal           goal?           @relation(fields: [id_goal], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_organization m_organization? @relation(fields: [id_org], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model goal_position {
+  id          String     @id(map: "goal_position_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal     String     @db.Uuid
+  id_position String     @db.Uuid
+  goal        goal       @relation(fields: [id_goal], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_position  m_position @relation(fields: [id_position], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_recommendation {
+  id               String          @id(map: "goal_recomendation_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_position      String?         @db.Uuid
+  id_org           String?         @db.Uuid
+  body             String?         @db.VarChar
+  id_goal_employee String          @db.Uuid
+  created_by       String          @db.Uuid
+  created_at       DateTime        @db.Timestamptz(6)
+  goal_employee    goal_employee   @relation(fields: [id_goal_employee], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "goal_recomendation_id_goal_employee_fkey")
+  m_organization   m_organization? @relation(fields: [id_org], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "goal_recomendation_id_org_fkey")
+  m_position       m_position?     @relation(fields: [id_position], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "goal_recomendation_id_position_fkey")
+  m_employee       m_employee      @relation(fields: [created_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model goal_report {
+  id               String        @id(map: "goal_report_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_employee String        @db.Uuid
+  threshold        Float?
+  correction       Float?
+  corrected_at     DateTime?     @db.Timestamptz(6)
+  month            Int?
+  year             Int?
+  goal_employee    goal_employee @relation(fields: [id_goal_employee], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_setting {
+  id                        String                      @id(map: "goal_setting_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_target_level           String?                     @db.Uuid
+  id_target_type            String?                     @db.Uuid
+  id_measure                String?                     @db.Uuid
+  name_goal                 String?                     @db.VarChar
+  description               String?                     @db.VarChar
+  definition                String?                     @db.VarChar
+  threshold                 Float?
+  start_date                DateTime?                   @db.Timestamptz(6)
+  due_date                  DateTime?                   @db.Timestamptz(6)
+  status                    String?                     @db.VarChar
+  timebound                 String?                     @db.VarChar
+  id_uom                    String?                     @db.Uuid
+  cascade                   Boolean?                    @default(false)
+  target                    Float?
+  created_at                DateTime?                   @db.Timestamptz(6)
+  bobot                     Float?
+  id_goal_type              String?                     @db.Uuid
+  is_numeric                Boolean?
+  id_parent                 String?                     @db.Uuid
+  month                     Int?
+  year                      Int?
+  created_by                String?                     @db.Uuid
+  is_manager                Boolean?                    @default(false)
+  action_detail             action_detail[]
+  dimension                 dimension[]
+  goal                      goal[]
+  m_employee                m_employee?                 @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  goal_type                 goal_type?                  @relation(fields: [id_goal_type], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_measure                 m_measure?                  @relation(fields: [id_measure], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal_setting              goal_setting?               @relation("goal_settingTogoal_setting", fields: [id_parent], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_goal_setting        goal_setting[]              @relation("goal_settingTogoal_setting")
+  m_target_level            m_target_level?             @relation(fields: [id_target_level], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_target_type             m_target_type?              @relation(fields: [id_target_type], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_uom                     m_uom?                      @relation(fields: [id_uom], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal_setting_company      goal_setting_company[]
+  goal_setting_department   goal_setting_department[]
+  goal_setting_employee     goal_setting_employee[]
+  goal_setting_organization goal_setting_organization[]
+  goal_setting_position     goal_setting_position[]
+  goal_setting_tags         goal_setting_tags[]
+  goal_setting_unit         goal_setting_unit[]
+  milestone                 milestone[]
+  resource                  resource[]
+}
+
+model goal_setting_company {
+  id              String         @id(map: "goal_setting_company_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_setting String         @db.Uuid
+  id_company      String         @db.Uuid
+  m_organization  m_organization @relation(fields: [id_company], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal_setting    goal_setting   @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model goal_setting_department {
+  id                       String                   @id(map: "goal_setting_department_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_setting          String                   @db.Uuid
+  id_department            String                   @db.Uuid
+  m_organization_structure m_organization_structure @relation(fields: [id_department], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal_setting             goal_setting             @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model goal_setting_employee {
+  id                          String                  @id(map: "goal_setting_employee_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_setting             String                  @db.Uuid
+  id_employee                 String                  @db.Uuid
+  threshold                   Float?
+  id_parent                   String?                 @db.Uuid
+  bobot                       Float?
+  action_detail               action_detail[]
+  dimension                   dimension[]
+  m_employee                  m_employee              @relation(fields: [id_employee], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  goal_setting                goal_setting            @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  goal_setting_employee       goal_setting_employee?  @relation("goal_setting_employeeTogoal_setting_employee", fields: [id_parent], references: [id], onUpdate: NoAction)
+  other_goal_setting_employee goal_setting_employee[] @relation("goal_setting_employeeTogoal_setting_employee")
+  milestone                   milestone[]
+  resource                    resource[]
+}
+
+model goal_setting_organization {
+  id              String          @id(map: "goal_setting_organization_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_org          String?         @db.Uuid
+  id_goal_setting String?         @db.Uuid
+  goal_setting    goal_setting?   @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_organization  m_organization? @relation(fields: [id_org], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model goal_setting_position {
+  id              String       @id(map: "goal_setting_position_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_setting String       @db.Uuid
+  id_position     String       @db.Uuid
+  goal_setting    goal_setting @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_position      m_position   @relation(fields: [id_position], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_setting_tags {
+  id              String       @id(map: "goal_setting_tags_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_setting String       @db.Uuid
+  id_tags         String       @db.Uuid
+  goal_setting    goal_setting @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_tags          m_tags       @relation(fields: [id_tags], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_setting_unit {
+  id              String       @id(map: "goal_setting_unit_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_setting String       @db.Uuid
+  id_unit         String       @db.Uuid
+  goal_setting    goal_setting @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_unit          m_unit       @relation(fields: [id_unit], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_tags {
+  id      String @id(map: "goal_tags_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal String @db.Uuid
+  id_tags String @db.Uuid
+  goal    goal   @relation(fields: [id_goal], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_tags  m_tags @relation(fields: [id_tags], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_target {
+  id               String        @id(map: "goal_target_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_employee String        @db.Uuid
+  description      String        @db.VarChar
+  progress         Float?
+  value            Float?
+  attachment       String?       @db.VarChar
+  created_at       DateTime?     @db.Timestamptz(6)
+  updated_at       DateTime?     @db.Timestamptz(6)
+  goal_employee    goal_employee @relation(fields: [id_goal_employee], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model goal_type {
+  id           String         @id(map: "goal_type_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String         @db.VarChar
+  goal         goal[]
+  goal_setting goal_setting[]
+}
+
+model goal_unit {
+  id      String @id(map: "goal_unit_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal String @db.Uuid
+  id_unit String @db.Uuid
+  goal    goal   @relation(fields: [id_goal], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_unit  m_unit @relation(fields: [id_unit], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model m_company {
+  id           String         @id(map: "m_company_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String         @db.VarChar
+  goal_company goal_company[]
+  m_department m_department[]
+  m_employee   m_employee[]
+}
+
+model m_department {
+  id         String     @id(map: "m_department_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_company String?    @db.Uuid
+  name       String     @db.VarChar
+  m_company  m_company? @relation(fields: [id_company], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_unit     m_unit[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model m_employee {
+  id                                                                String                    @id(map: "m_employee_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                                                              String?                   @db.VarChar
+  name                                                              String                    @db.VarChar
+  npwp                                                              String?                   @db.VarChar
+  gender                                                            String?                   @db.VarChar
+  age                                                               Int?
+  home_address                                                      String?                   @db.VarChar
+  status                                                            String?                   @db.VarChar
+  id_company                                                        String?                   @db.Uuid
+  id_unit                                                           String?                   @db.Uuid
+  id_department                                                     String?                   @db.Uuid
+  id_position                                                       String?                   @db.Uuid
+  id_grade                                                          String?                   @db.Uuid
+  id_user                                                           String?                   @unique @db.Uuid
+  length_of_service                                                 String?                   @db.VarChar
+  work_location                                                     String?                   @db.VarChar
+  id_parent                                                         String?                   @db.Uuid
+  id_org                                                            String?                   @db.Uuid
+  hc_employee_id                                                    Int?
+  company_address                                                   String?                   @db.VarChar
+  nik                                                               String?                   @db.VarChar
+  goal_approval_goal_approval_created_byTom_employee                goal_approval[]           @relation("goal_approval_created_byTom_employee")
+  goal_approval_goal_approval_verified_idTom_employee               goal_approval[]           @relation("goal_approval_verified_idTom_employee")
+  goal_employee                                                     goal_employee[]
+  goal_feedback                                                     goal_feedback[]
+  goal_recommendation                                               goal_recommendation[]
+  goal_setting                                                      goal_setting[]
+  goal_setting_employee                                             goal_setting_employee[]
+  m_company                                                         m_company?                @relation(fields: [id_company], references: [id], onUpdate: NoAction)
+  m_organization_structure                                          m_organization_structure? @relation(fields: [id_department], references: [id], onUpdate: NoAction)
+  m_grade                                                           m_grade?                  @relation(fields: [id_grade], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_organization                                                    m_organization?           @relation(fields: [id_org], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_employee                                                        m_employee?               @relation("m_employeeTom_employee", fields: [id_parent], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_m_employee                                                  m_employee[]              @relation("m_employeeTom_employee")
+  m_position                                                        m_position?               @relation(fields: [id_position], references: [id], onUpdate: NoAction)
+  m_unit                                                            m_unit?                   @relation(fields: [id_unit], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_user                                                            m_user?                   @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_employee_position                                               m_employee_position[]
+  performance_employee_performance_employee_id_employeeTom_employee performance_employee[]    @relation("performance_employee_id_employeeTom_employee")
+  performance_employee_performance_employee_updated_byTom_employee  performance_employee[]    @relation("performance_employee_updated_byTom_employee")
+}
+
+model m_employee_position {
+  id                       String                    @id(map: "m_employee_position_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_employee              String                    @db.Uuid
+  id_position              String                    @db.Uuid
+  is_pk                    Boolean?                  @default(false)
+  id_structure             String?                   @db.Uuid
+  m_employee               m_employee                @relation(fields: [id_employee], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_position               m_position                @relation(fields: [id_position], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_organization_structure m_organization_structure? @relation(fields: [id_structure], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model m_goal_type {
+  id   String @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name String @db.VarChar
+
+  @@ignore
+}
+
+model m_grade {
+  id         String       @id(map: "m_grade_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String       @db.VarChar
+  m_employee m_employee[]
+}
+
+model m_measure {
+  id           String         @id(map: "m_measure_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String         @db.VarChar
+  goal         goal[]
+  goal_setting goal_setting[]
+}
+
+model m_organization {
+  id                        String                      @id(map: "m_org_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                      String?                     @db.VarChar
+  id_parent                 String?                     @db.Uuid
+  address                   String?                     @db.VarChar
+  ad_org_id                 Int?
+  goal_organization         goal_organization[]
+  goal_recommendation       goal_recommendation[]
+  goal_setting_company      goal_setting_company[]
+  goal_setting_organization goal_setting_organization[]
+  m_employee                m_employee[]
+  m_organization            m_organization?             @relation("m_organizationTom_organization", fields: [id_parent], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "m_org_id_parent_fkey")
+  other_m_organization      m_organization[]            @relation("m_organizationTom_organization")
+  m_organization_structure  m_organization_structure[]
+  m_position                m_position[]
+}
+
+model m_organization_structure {
+  id                             String                     @id(map: "m_organization_structure_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                           String?                    @db.VarChar
+  value                          Int?
+  hc_org_id                      Int?
+  id_parent                      String?                    @db.Uuid
+  id_org                         String?                    @db.Uuid
+  goal_department                goal_department[]
+  goal_setting_department        goal_setting_department[]
+  m_employee                     m_employee[]
+  m_employee_position            m_employee_position[]
+  m_organization                 m_organization?            @relation(fields: [id_org], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_organization_structure       m_organization_structure?  @relation("m_organization_structureTom_organization_structure", fields: [id_parent], references: [id], onUpdate: NoAction)
+  other_m_organization_structure m_organization_structure[] @relation("m_organization_structureTom_organization_structure")
+  m_position                     m_position[]
+}
+
+model m_position {
+  id                       String                    @id(map: "m_position_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                     String                    @db.VarChar
+  id_parent                String?                   @db.Uuid
+  is_pk                    Boolean?                  @default(false)
+  id_org                   String?                   @db.Uuid
+  hc_job_id                Int?
+  id_department            String?                   @db.Uuid
+  goal_position            goal_position[]
+  goal_recommendation      goal_recommendation[]
+  goal_setting_position    goal_setting_position[]
+  m_employee               m_employee[]
+  m_employee_position      m_employee_position[]
+  m_organization_structure m_organization_structure? @relation(fields: [id_department], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  m_organization           m_organization?           @relation(fields: [id_org], references: [id], onUpdate: NoAction)
+  m_position               m_position?               @relation("m_positionTom_position", fields: [id_parent], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_m_position         m_position[]              @relation("m_positionTom_position")
+}
+
+model m_role {
+  id          String        @id(map: "m_role_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String        @db.VarChar
+  m_user      m_user[]
+  m_user_role m_user_role[]
+}
+
+model m_tags {
+  id                String              @id(map: "m_tags_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String?             @db.VarChar
+  goal_setting_tags goal_setting_tags[]
+  goal_tags         goal_tags[]
+}
+
+model m_target_level {
+  id           String         @id(map: "m_target_level_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  target_level String?        @db.VarChar
+  description  String?        @db.VarChar
+  goal         goal[]
+  goal_setting goal_setting[]
+}
+
+model m_target_level_dimension {
+  id        String      @id(map: "m_target_level_dimension_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String      @db.VarChar
+  dimension dimension[]
+}
+
+model m_target_type {
+  id           String         @id(map: "m_target_type_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  target_type  String?        @db.VarChar
+  goal         goal[]
+  goal_setting goal_setting[]
+}
+
+model m_unit {
+  id                String              @id(map: "m_unit_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_department     String?             @db.Uuid
+  name              String              @db.VarChar
+  goal_setting_unit goal_setting_unit[]
+  goal_unit         goal_unit[]
+  m_employee        m_employee[]
+  m_department      m_department?       @relation(fields: [id_department], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model m_uom {
+  id           String         @id(map: "m_uom_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String         @db.VarChar
+  suffix       String?        @db.VarChar
+  goal         goal[]
+  goal_setting goal_setting[]
+}
+
+model m_user {
+  id             String        @id(map: "m_user_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username       String        @db.VarChar
+  email          String        @db.VarChar
+  password       String        @db.VarChar
+  created_at     DateTime?     @db.Timestamptz(6)
+  updated_at     DateTime?     @db.Timestamptz(6)
+  is_deleted     Boolean?
+  id_role        String?       @db.Uuid
+  parent_id      String?       @db.Uuid
+  name           String?       @db.VarChar
+  reset_password Boolean?      @default(false)
+  m_employee     m_employee?
+  m_role         m_role?       @relation(fields: [id_role], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_user         m_user?       @relation("m_userTom_user", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_m_user   m_user[]      @relation("m_userTom_user")
+  m_user_role    m_user_role[]
+}
+
+model m_user_role {
+  id      String @id(map: "m_user_role_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_user String @db.Uuid
+  id_role String @db.Uuid
+  m_role  m_role @relation(fields: [id_role], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_user  m_user @relation(fields: [id_user], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model milestone {
+  id                       String                 @id(map: "milestone_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_employee         String?                @db.Uuid
+  id_goal_setting_employee String?                @db.Uuid
+  name                     String?                @db.VarChar
+  status                   Boolean?
+  id_goal_setting          String?                @db.Uuid
+  id_goal                  String?                @db.Uuid
+  id_parent                String?                @db.Uuid
+  goal_employee            goal_employee?         @relation(fields: [id_goal_employee], references: [id], onDelete: Cascade)
+  goal                     goal?                  @relation(fields: [id_goal], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  goal_setting_employee    goal_setting_employee? @relation(fields: [id_goal_setting_employee], references: [id])
+  goal_setting             goal_setting?          @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  milestone                milestone?             @relation("milestoneTomilestone", fields: [id_parent], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_milestone          milestone[]            @relation("milestoneTomilestone")
+  milestone_employee       milestone_employee[]
+}
+
+model milestone_employee {
+  id               String         @id(map: "milestone_employee_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_employee String?        @db.Uuid
+  id_milestone     String?        @db.Uuid
+  status           Boolean?
+  goal_employee    goal_employee? @relation(fields: [id_goal_employee], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  milestone        milestone?     @relation(fields: [id_milestone], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model notification {
+  id          String    @id(map: "notification_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String?   @db.VarChar
+  url         String?   @db.VarChar
+  created_at  DateTime? @db.Timestamptz(6)
+  created_by  String?   @db.Uuid
+  read_at     DateTime? @db.Timestamptz(6)
+  message     String?   @db.VarChar
+  id_goal     String?   @db.Uuid
+  id_receiver String?   @db.Uuid
+  is_hide     Boolean?  @default(false)
+}
+
+model performance_employee {
+  id                                                      String                          @id(map: "performance_employee_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_employee                                             String                          @db.Uuid
+  employee_name                                           String                          @db.VarChar
+  department                                              String?                         @db.VarChar
+  unit                                                    String?                         @db.VarChar
+  position                                                String?                         @db.VarChar
+  grade                                                   String?                         @db.VarChar
+  period_start                                            DateTime?                       @db.Timestamptz(6)
+  period_end                                              DateTime?                       @db.Timestamptz(6)
+  performance                                             Float?
+  created_at                                              DateTime?                       @db.Timestamptz(6)
+  updated_at                                              DateTime?                       @db.Timestamptz(6)
+  category                                                String?                         @db.VarChar
+  potential                                               Float?
+  correction_factor                                       Float?
+  month                                                   Int?
+  normalized_achievement                                  Float?
+  normalized_total_achievement                            Float?
+  year                                                    Int?
+  potential_correction                                    Float?
+  normalized_potential                                    Float?
+  performance_correction                                  Float?
+  updated_by                                              String?                         @db.Uuid
+  deviasi_standar                                         Float?
+  mean                                                    Float?
+  deviasi_standar_correction                              Float?
+  mean_correction                                         Float?
+  zscore                                                  Float?
+  zscore_correction                                       Float?
+  m_employee_performance_employee_id_employeeTom_employee m_employee                      @relation("performance_employee_id_employeeTom_employee", fields: [id_employee], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  m_employee_performance_employee_updated_byTom_employee  m_employee?                     @relation("performance_employee_updated_byTom_employee", fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  performance_employee_feedback                           performance_employee_feedback[]
+}
+
+model performance_employee_feedback {
+  id                      String               @id(map: "performance_employee_feedback_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_performance_employee String               @db.Uuid
+  good_point              String               @db.VarChar
+  point_of_improvement    String               @db.VarChar
+  challenge               String               @db.VarChar
+  month                   Int
+  year                    Int
+  created_at              DateTime             @db.Timestamptz(6)
+  updated_at              DateTime             @db.Timestamptz(6)
+  performance_employee    performance_employee @relation(fields: [id_performance_employee], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model resource {
+  id                       String                 @id(map: "resource_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_goal_employee         String?                @db.Uuid
+  id_goal_setting_employee String?                @db.Uuid
+  name                     String
+  status                   Boolean?
+  id_goal                  String?                @db.Uuid
+  id_goal_setting          String?                @db.Uuid
+  id_parent                String?                @db.Uuid
+  goal_employee            goal_employee?         @relation(fields: [id_goal_employee], references: [id], onDelete: Cascade)
+  goal                     goal?                  @relation(fields: [id_goal], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  goal_setting_employee    goal_setting_employee? @relation(fields: [id_goal_setting_employee], references: [id])
+  goal_setting             goal_setting?          @relation(fields: [id_goal_setting], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  resource                 resource?              @relation("resourceToresource", fields: [id_parent], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  other_resource           resource[]             @relation("resourceToresource")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model system_log {
+  id         String    @id(map: "system_log_id") @default("gen_random_uuid()") @db.VarChar
+  name       String?   @db.VarChar
+  status     String?   @db.VarChar
+  notes      String?   @db.VarChar
+  created_at DateTime? @db.Timestamptz(6)
+}
