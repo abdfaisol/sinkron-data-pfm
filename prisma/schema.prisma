@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -407,6 +407,7 @@ model m_employee {
   hc_employee_id                                                    Int?
   company_address                                                   String?                   @db.VarChar
   nik                                                               String?                   @db.VarChar
+  status_employee                                                   String?                   @db.VarChar
   goal_approval_goal_approval_created_byTom_employee                goal_approval[]           @relation("goal_approval_created_byTom_employee")
   goal_approval_goal_approval_verified_idTom_employee               goal_approval[]           @relation("goal_approval_verified_idTom_employee")
   goal_employee                                                     goal_employee[]
@@ -698,11 +699,15 @@ model resource {
   other_resource           resource[]             @relation("resourceToresource")
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model system_log {
-  id         String    @id(map: "system_log_id") @default("gen_random_uuid()") @db.VarChar
+model activity_log {
   name       String?   @db.VarChar
   status     String?   @db.VarChar
   notes      String?   @db.VarChar
   created_at DateTime? @db.Timestamptz(6)
+  type       String?   @db.VarChar
+  created_by String?   @db.Uuid
+  user       String?   @db.VarChar
+  id         String    @id(map: "system_log_id") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  table      String?   @db.VarChar
+  id_connect String?   @db.Uuid
 }
