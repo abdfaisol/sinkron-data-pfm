@@ -1,9 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
-const log = require('./logger');
-const { Pool } = require('pg');
-const { PrismaPg } = require('@prisma/adapter-pg');
+const { PrismaClient } = require("@prisma/client");
+const log = require("./logger");
+const { Pool } = require("pg");
+const { PrismaPg } = require("@prisma/adapter-pg");
 
-require('dotenv').config();
+require("dotenv").config();
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -53,25 +53,38 @@ const syncOrganization = async (token) => {
       const data = [];
 
       result.data.forEach((e) => {
-        const f = org.find(ex => ex.ad_org_id === e.ad_org_id);
-        let address = e.org_info && Array.isArray(e.org_info.locations) && e.org_info.locations.length
-          ? e.org_info.address
-          : null;
+        const f = org.find((ex) => ex.ad_org_id === e.ad_org_id);
+        let address =
+          e.org_info &&
+          Array.isArray(e.org_info.locations) &&
+          e.org_info.locations.length
+            ? e.org_info.address
+            : null;
 
         if (f) {
           log.info(`Update Organisasi: ${e.name}`);
-          data.push({ id: f.id, name: e.name, address: address, ad_org_id: e.ad_org_id });
+          data.push({
+            id: f.id,
+            name: e.name,
+            address: address,
+            ad_org_id: e.ad_org_id,
+          });
         } else {
           log.info(`Buat Organisasi baru: ${e.name}`);
           data.push({ name: e.name, address: address, ad_org_id: e.ad_org_id });
         }
       });
 
-      const transactions = data.map(d => {
+      const transactions = data.map((d) => {
         if (d.id) {
-          return db.m_organization.update({ where: { id: d.id }, data: { name: d.name, address: d.address, ad_org_id: d.ad_org_id } });
+          return db.m_organization.update({
+            where: { id: d.id },
+            data: { name: d.name, address: d.address, ad_org_id: d.ad_org_id },
+          });
         } else {
-          return db.m_organization.create({ data: { name: d.name, address: d.address, ad_org_id: d.ad_org_id } });
+          return db.m_organization.create({
+            data: { name: d.name, address: d.address, ad_org_id: d.ad_org_id },
+          });
         }
       });
       await db.$transaction(transactions, { maxWait: 10000, timeout: 60000 });
@@ -94,23 +107,28 @@ const syncOrganizationStructure = async (token) => {
       },
     };
     const organization = await db.m_organization.findMany({
-      where: { ad_org_id: { not: null } }
+      where: { ad_org_id: { not: null } },
     });
 
     if (organization.length) {
       for (const item of organization) {
-        const res = await fetch(`${MIDSUIT_URL}/organizations/${item.ad_org_id}/structures`, options);
+        const res = await fetch(
+          `${MIDSUIT_URL}/organizations/${item.ad_org_id}/structures`,
+          options,
+        );
         const result = await res.json();
 
         if (result && Array.isArray(result.data) && result.data.length) {
-          log.info(`Ditemukan ${result.data.length} struktur untuk Organisasi ID ${item.ad_org_id}`);
+          log.info(
+            `Ditemukan ${result.data.length} struktur untuk Organisasi ID ${item.ad_org_id}`,
+          );
           const org = await db.m_organization_structure.findMany({
-            where: { id_org: item.id }
+            where: { id_org: item.id },
           });
 
           const data = [];
           result.data.forEach((e) => {
-            const f = org.find(ex => ex.hc_org_id === e.hc_org_id);
+            const f = org.find((ex) => ex.hc_org_id === e.hc_org_id);
             let resObj = {
               name: e.name,
               hc_org_id: e.hc_org_id,
@@ -129,16 +147,22 @@ const syncOrganizationStructure = async (token) => {
             data.push(resObj);
           });
 
-          const transactions = data.map(d => {
+          const transactions = data.map((d) => {
             const { _marker, id, ...prismaData } = d;
             if (id) {
-              return db.m_organization_structure.update({ where: { id }, data: prismaData });
+              return db.m_organization_structure.update({
+                where: { id },
+                data: prismaData,
+              });
             } else {
               return db.m_organization_structure.create({ data: prismaData });
             }
           });
 
-          const transactionResults = await db.$transaction(transactions, { maxWait: 10000, timeout: 60000 });
+          const transactionResults = await db.$transaction(transactions, {
+            maxWait: 10000,
+            timeout: 60000,
+          });
 
           const structures = transactionResults.map((res, i) => ({
             ...res,
@@ -147,7 +171,9 @@ const syncOrganizationStructure = async (token) => {
 
           let structures_parent = structures.map((e) => {
             if (e._marker.parent) {
-              const f = structures.find(ex => ex._marker.id === e._marker.parent);
+              const f = structures.find(
+                (ex) => ex._marker.id === e._marker.parent,
+              );
               return {
                 ...e,
                 id_parent: f ? f.id : null,
@@ -160,15 +186,18 @@ const syncOrganizationStructure = async (token) => {
             }
           });
 
-          const parentTransactions = structures_parent.map(e => {
+          const parentTransactions = structures_parent.map((e) => {
             return db.m_organization_structure.update({
               where: { id: e.id },
-              data: { id_parent: e.id_parent }
+              data: { id_parent: e.id_parent },
             });
           });
 
           if (parentTransactions.length > 0) {
-            await db.$transaction(parentTransactions, { maxWait: 10000, timeout: 60000 });
+            await db.$transaction(parentTransactions, {
+              maxWait: 10000,
+              timeout: 60000,
+            });
           }
         }
       }
@@ -190,26 +219,31 @@ const syncPosition = async (token) => {
       },
     };
     const organization = await db.m_organization.findMany({
-      where: { ad_org_id: { not: null } }
+      where: { ad_org_id: { not: null } },
     });
 
     if (organization.length) {
       for (const item of organization) {
         try {
-          const res = await fetch(`${MIDSUIT_URL}/organizations/${item.ad_org_id}/jobs`, options);
+          const res = await fetch(
+            `${MIDSUIT_URL}/organizations/${item.ad_org_id}/jobs`,
+            options,
+          );
           const result = await res.json();
 
           if (result && Array.isArray(result.data) && result.data.length) {
-            log.info(`Ditemukan ${result.data.length} posisi untuk Organisasi ID ${item.ad_org_id}`);
+            log.info(
+              `Ditemukan ${result.data.length} posisi untuk Organisasi ID ${item.ad_org_id}`,
+            );
             const org = await db.m_position.findMany({
-              where: { id_org: item.id }
+              where: { id_org: item.id },
             });
 
-            const data_structure = result.data.filter(e => e.hc_org_id);
-            const id_structure = data_structure.map(e => e.hc_org_id);
+            const data_structure = result.data.filter((e) => e.hc_org_id);
+            const id_structure = data_structure.map((e) => e.hc_org_id);
 
             const depts = await db.m_organization_structure.findMany({
-              where: { hc_org_id: { in: id_structure } }
+              where: { hc_org_id: { in: id_structure } },
             });
 
             const data = [];
@@ -226,14 +260,14 @@ const syncPosition = async (token) => {
               };
 
               if (e.hc_org_id) {
-                const dep = depts.find(ex => ex.hc_org_id === e.hc_org_id);
+                const dep = depts.find((ex) => ex.hc_org_id === e.hc_org_id);
                 if (dep) {
                   resObj.id_department = dep.id;
                 }
               }
 
               if (org.length) {
-                const f = org.find(ex => ex.hc_job_id === e.hc_job_id);
+                const f = org.find((ex) => ex.hc_job_id === e.hc_job_id);
                 if (f) {
                   log.info(`Update Posisi: ${e.name}`);
                   resObj.id = f.id;
@@ -246,16 +280,22 @@ const syncPosition = async (token) => {
               data.push(resObj);
             });
 
-            const transactions = data.map(d => {
+            const transactions = data.map((d) => {
               const { _marker, id, ...prismaData } = d;
               if (id) {
-                return db.m_position.update({ where: { id }, data: prismaData });
+                return db.m_position.update({
+                  where: { id },
+                  data: prismaData,
+                });
               } else {
                 return db.m_position.create({ data: prismaData });
               }
             });
 
-            const transactionResults = await db.$transaction(transactions, { maxWait: 10000, timeout: 60000 });
+            const transactionResults = await db.$transaction(transactions, {
+              maxWait: 10000,
+              timeout: 60000,
+            });
 
             const structures = transactionResults.map((res, i) => ({
               ...res,
@@ -264,7 +304,9 @@ const syncPosition = async (token) => {
 
             let structures_parent = structures.map((e) => {
               if (e._marker.parent) {
-                const f = structures.find(ex => ex._marker.id === e._marker.parent);
+                const f = structures.find(
+                  (ex) => ex._marker.id === e._marker.parent,
+                );
                 return {
                   ...e,
                   id_parent: f ? f.id : null,
@@ -277,15 +319,18 @@ const syncPosition = async (token) => {
               }
             });
 
-            const parentTransactions = structures_parent.map(e => {
+            const parentTransactions = structures_parent.map((e) => {
               return db.m_position.update({
                 where: { id: e.id },
-                data: { id_parent: e.id_parent }
+                data: { id_parent: e.id_parent },
               });
             });
 
             if (parentTransactions.length > 0) {
-              await db.$transaction(parentTransactions, { maxWait: 10000, timeout: 60000 });
+              await db.$transaction(parentTransactions, {
+                maxWait: 10000,
+                timeout: 60000,
+              });
             }
           }
         } catch (ex) {
@@ -310,20 +355,29 @@ const syncEmployee = async (token) => {
       },
     };
     const organization = await db.m_organization.findMany({
-      where: { ad_org_id: { not: null } }
+      where: { ad_org_id: { not: null } },
     });
 
     if (organization.length) {
       for (const item of organization) {
         try {
-          const res = await fetch(`${MIDSUIT_URL}/organizations/${item.ad_org_id}/employees`, options);
+          const res = await fetch(
+            `${MIDSUIT_URL}/organizations/${item.ad_org_id}/employees`,
+            options,
+          );
           const result = await res.json();
           if (result) {
             const data = Array.isArray(result.data) ? result.data : [];
-            log.info(`Ditemukan ${data.length} karyawan untuk Organisasi ID ${item.ad_org_id}`);
+            log.info(
+              `Ditemukan ${data.length} karyawan untuk Organisasi ID ${item.ad_org_id}`,
+            );
             if (data.length) {
-              const dept = await db.m_organization_structure.findMany({ where: { id_org: item.id } });
-              const position = await db.m_position.findMany({ where: { id_org: item.id } });
+              const dept = await db.m_organization_structure.findMany({
+                where: { id_org: item.id },
+              });
+              const position = await db.m_position.findMany({
+                where: { id_org: item.id },
+              });
               await upsert_employee(data, dept, position, item.id);
             }
           }
@@ -365,17 +419,21 @@ const upsert_employee = async (list, department, position, id_org) => {
       log.info(`Buat data Karyawan baru: ${emp.name}`);
     }
 
-    const fDept = department.find(e => e.hc_org_id === emp?.employee_job?.hc_org_id);
+    const fDept = department.find(
+      (e) => e.hc_org_id === emp?.employee_job?.hc_org_id,
+    );
     data.id_department = fDept ? fDept.id : null;
 
-    const fPos = position.find(e => e.hc_job_id === emp?.employee_job?.hc_job_id);
+    const fPos = position.find(
+      (e) => e.hc_job_id === emp?.employee_job?.hc_job_id,
+    );
     data.id_position = fPos ? fPos.id : null;
 
     return data;
   });
 
   // Pass 1: Upsert m_employee
-  const empTransactions = upsert_data.map(d => {
+  const empTransactions = upsert_data.map((d) => {
     if (d.id) {
       const { id, ...rest } = d;
       return db.m_employee.update({ where: { id }, data: rest });
@@ -408,36 +466,49 @@ const upsert_employee = async (list, department, position, id_org) => {
   const users = [];
   let passwordUtil = { hash: (str) => str };
   try {
-    const bcrypt = require('./bcrypt.js');
+    const bcrypt = require("./bcrypt.js");
     passwordUtil = {
       hash: (pass) => {
         const salt = bcrypt.genSaltSync(10);
         return bcrypt.hashSync(pass, salt);
-      }
+      },
     };
   } catch (e) {
-    log.error("Warning: gagal meload bcrypt.js, menggunakan crypto fallback.", e.message);
-    passwordUtil = { hash: (str) => require('crypto').createHash('sha256').update(str || '').digest('hex') };
+    log.error(
+      "Warning: gagal meload bcrypt.js, menggunakan crypto fallback.",
+      e.message,
+    );
+    passwordUtil = {
+      hash: (str) =>
+        require("crypto")
+          .createHash("sha256")
+          .update(str || "")
+          .digest("hex"),
+    };
   }
 
-  staff.forEach(e => {
+  staff.forEach((e) => {
     if (!e.id_position) return;
-    
+
     // Determine is_manager
     let is_manager = false;
     if (e.m_position) {
       const other_position = e.m_position.other_m_position || [];
       if (other_position.length) {
-        const hasStaff = other_position.find(ex => {
+        const hasStaff = other_position.find((ex) => {
           return ex && ex.m_employee && ex.m_employee.length > 0;
         });
         if (hasStaff) is_manager = true;
       }
     }
-    
+
     // Determine Role ID
     let roleId = "b6e2aa92-7074-42a4-82cb-28f72fb571b8"; // employee
-    if (e.m_department && e.m_department.name === "Human Resource") {
+    if (
+      e.m_department &&
+      (e.m_department.name === "Human Resource" ||
+        e.m_department.name === "HRIS & Performance Management")
+    ) {
       roleId = "1e9547a4-7699-40b5-b85e-c830953c3dbe"; // hrd
     } else if (is_manager) {
       roleId = "7824aaec-f39d-4038-aadb-e55ad6a76f71"; // manager
@@ -471,7 +542,7 @@ const upsert_employee = async (list, department, position, id_org) => {
     // Determine is_pk
     let is_pk = false;
     if (is_manager) {
-      let f = staff.find(ex => e.id_position === ex.id_position && ex.is_pk);
+      let f = staff.find((ex) => e.id_position === ex.id_position && ex.is_pk);
       if (!f) is_pk = true;
     }
     e.is_pk = is_pk;
@@ -497,7 +568,7 @@ const upsert_employee = async (list, department, position, id_org) => {
   });
 
   // Pass 2: Upsert m_employee_position
-  const posTransactions = posisi_employee.map(p => {
+  const posTransactions = posisi_employee.map((p) => {
     const { id, ...rest } = p;
     if (id) {
       return db.m_employee_position.update({ where: { id }, data: rest });
@@ -505,20 +576,20 @@ const upsert_employee = async (list, department, position, id_org) => {
       return db.m_employee_position.create({ data: rest });
     }
   });
-  if(posTransactions.length > 0) {
+  if (posTransactions.length > 0) {
     await db.$transaction(posTransactions, { maxWait: 10000, timeout: 60000 });
   }
 
   // Pass 3: Upsert m_user
-  const usernames = users.map(u => u.username);
+  const usernames = users.map((u) => u.username);
   const existingUsers = await db.m_user.findMany({
-    where: { username: { in: usernames } }
+    where: { username: { in: usernames } },
   });
 
-  const userTransactions = users.map(u => {
+  const userTransactions = users.map((u) => {
     const { _marker, id, ...rest } = u;
-    const existing = existingUsers.find(ex => ex.username === u.username);
-    
+    const existing = existingUsers.find((ex) => ex.username === u.username);
+
     if (id || existing) {
       const updateId = id || existing.id;
       return db.m_user.update({ where: { id: updateId }, data: rest });
@@ -529,23 +600,31 @@ const upsert_employee = async (list, department, position, id_org) => {
 
   const userResults = [];
   if (userTransactions.length > 0) {
-    const ur = await db.$transaction(userTransactions, { maxWait: 10000, timeout: 60000 });
+    const ur = await db.$transaction(userTransactions, {
+      maxWait: 10000,
+      timeout: 60000,
+    });
     userResults.push(...ur);
   }
 
   // Match back and update m_employee with id_user
-  const empUpdateTransactions = userResults.map(ur => {
-    const u = users.find(x => x.username === ur.username);
-    if (u && u._marker && u._marker.id_employee) {
-      return db.m_employee.update({
-        where: { id: u._marker.id_employee },
-        data: { id_user: ur.id }
-      });
-    }
-  }).filter(Boolean);
+  const empUpdateTransactions = userResults
+    .map((ur) => {
+      const u = users.find((x) => x.username === ur.username);
+      if (u && u._marker && u._marker.id_employee) {
+        return db.m_employee.update({
+          where: { id: u._marker.id_employee },
+          data: { id_user: ur.id },
+        });
+      }
+    })
+    .filter(Boolean);
 
   if (empUpdateTransactions.length > 0) {
-    await db.$transaction(empUpdateTransactions, { maxWait: 10000, timeout: 60000 });
+    await db.$transaction(empUpdateTransactions, {
+      maxWait: 10000,
+      timeout: 60000,
+    });
   }
 
   await sinkron_role();
@@ -564,16 +643,16 @@ const sinkron_role = async () => {
   ];
 
   const findRoleId = (name) => {
-    const result = role.find(e => e.name === name);
+    const result = role.find((e) => e.name === name);
     return result ? result.id : null;
   };
 
   const mapping_children_role = (id_user, user_role) => {
-    const your_role = child_role.find(e => e.name === user_role);
+    const your_role = child_role.find((e) => e.name === user_role);
     const data = your_role ? your_role.child : [];
     const result = [];
     if (data.length) {
-      data.forEach(e => {
+      data.forEach((e) => {
         const id_role = findRoleId(e);
         if (id_role) {
           result.push({ id_user, id_role });
@@ -584,7 +663,7 @@ const sinkron_role = async () => {
   };
 
   let data = [];
-  employee.forEach(e => {
+  employee.forEach((e) => {
     if (e.m_role && e.m_role.name) {
       const id_role = findRoleId(e.m_role.name);
       if (id_role) {
@@ -599,7 +678,7 @@ const sinkron_role = async () => {
 
   const uniqueData = [];
   const seen = new Set();
-  data.forEach(d => {
+  data.forEach((d) => {
     const key = `${d.id_user}_${d.id_role}`;
     if (!seen.has(key)) {
       seen.add(key);
@@ -607,24 +686,27 @@ const sinkron_role = async () => {
     }
   });
 
-  const userIds = employee.map(e => e.id);
-  
+  const userIds = employee.map((e) => e.id);
+
   if (userIds.length > 0) {
-    await db.$transaction([
-      db.m_user_role.deleteMany({ where: { id_user: { in: userIds } } }),
-      db.m_user_role.createMany({ data: uniqueData })
-    ], { maxWait: 10000, timeout: 60000 });
+    await db.$transaction(
+      [
+        db.m_user_role.deleteMany({ where: { id_user: { in: userIds } } }),
+        db.m_user_role.createMany({ data: uniqueData }),
+      ],
+      { maxWait: 10000, timeout: 60000 },
+    );
   }
 };
 
 const runFullSync = async (manualToken) => {
   let token = manualToken;
-  if (!token || token === 'DUMMY_TOKEN') {
+  if (!token || token === "DUMMY_TOKEN") {
     token = await getToken();
   }
 
   if (!token) {
-    return { status: 'error', message: 'Gagal mendapatkan token auth' };
+    return { status: "error", message: "Gagal mendapatkan token auth" };
   }
 
   try {
@@ -632,14 +714,14 @@ const runFullSync = async (manualToken) => {
     await syncOrganizationStructure(token);
     await syncPosition(token);
     await syncEmployee(token);
-    return { status: 'success', message: 'Semua data berhasil disinkronkan' };
+    return { status: "success", message: "Semua data berhasil disinkronkan" };
   } catch (error) {
     console.error("Gagal sinkronisasi:", error);
-    return { status: 'error', message: error.message };
+    return { status: "error", message: error.message };
   }
 };
 
 module.exports = {
   runFullSync,
-  getToken
+  getToken,
 };
