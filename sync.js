@@ -448,6 +448,7 @@ const upsert_employee = async (list, department, position, id_org) => {
   const staff = await db.m_employee.findMany({
     where: { hc_employee_id: { in: code_employee } },
     include: {
+      m_organization_structure: true,
       m_organization: true,
       m_employee_position: true,
       m_position: {
@@ -505,9 +506,9 @@ const upsert_employee = async (list, department, position, id_org) => {
     // Determine Role ID
     let roleId = "b6e2aa92-7074-42a4-82cb-28f72fb571b8"; // employee
     if (
-      e.m_department &&
-      (e.m_department.name === "Human Resource" ||
-        e.m_department.name === "HRIS & Performance Management")
+      e.m_organization_structure &&
+      (e.m_organization_structure.name === "Human Resource" ||
+        e.m_organization_structure.name === "HRIS & Performance Management")
     ) {
       roleId = "1e9547a4-7699-40b5-b85e-c830953c3dbe"; // hrd
     } else if (is_manager) {
